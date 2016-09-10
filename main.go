@@ -4,7 +4,6 @@ package main
 import (
 	"deglonconsulting.com/common"
 	"fmt"
-	"golang.org/x/net/context"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -12,11 +11,10 @@ import (
 	"html/template"
 	"math/rand"
 	"net/http"
-	"strings"
 	"time"
 )
 
-var pageTemplate = template.Must(template.New("index.html").Delims("[[", "]]").ParseFiles("shared/game/index.html"))
+var pageTemplate = template.Must(template.New("index.html").Delims("[[", "]]").ParseFiles("index.html"))
 
 var answers = []string{
 	"rock",
@@ -150,27 +148,6 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprint(w, answer)
 
-}
-
-func Simplify(c context.Context, text string) string {
-	result := ""
-	for _, w := range strings.Split(text, " ") {
-		for _, a := range answers {
-			if w == a {
-				result += string(a[0])
-				break
-			}
-		}
-	}
-	return result
-}
-
-func LastTwo(text string) string {
-	n := len(text) - 2
-	if n < 0 {
-		n = 0
-	}
-	return text[n:]
 }
 
 func RecordHandler(w http.ResponseWriter, r *http.Request) {

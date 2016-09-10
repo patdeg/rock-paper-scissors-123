@@ -1,10 +1,12 @@
 package main
 
 import (
+	"golang.org/x/net/context"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/user"
 	"net/http"
+	"strings"
 )
 
 // Function for Handlers to check if user is logged in
@@ -25,4 +27,25 @@ func RedirectIfNotLoggedIn(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	return false
+}
+
+func Simplify(c context.Context, text string) string {
+	result := ""
+	for _, w := range strings.Split(text, " ") {
+		for _, a := range answers {
+			if w == a {
+				result += string(a[0])
+				break
+			}
+		}
+	}
+	return result
+}
+
+func LastTwo(text string) string {
+	n := len(text) - 2
+	if n < 0 {
+		n = 0
+	}
+	return text[n:]
 }
