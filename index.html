@@ -1,0 +1,77 @@
+<html ng-app="myApp">
+
+<head>  
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">	
+	<link href="/app.css?version=[[.Version]]" rel="stylesheet">
+	<title>Rock Paper Scissors Game</title>
+</head>
+
+
+<body ng-controller="MyController" class="center">
+
+	<div class="container" ng-cloak>
+
+		<div class="row">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            	<h1>Rock, Paper, Scissor</h1>				
+				User wins: {{user_wins}}<br>
+				Deuce: {{deuce}}<br>
+				Serve wins: {{server_wins}}<br>				 
+				<hr>
+			</div>
+        </div> <!-- row -->
+
+        <!-- ================================ Question === -->
+		<div class="row" ng-show="play_status=='question'">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            	<button class="btn btn-primary" ng-click="Rock()">
+            		Rock
+            	</button>
+            	<button class="btn btn-primary" ng-click="Paper()">
+            		Paper
+            	</button>
+            	<button class="btn btn-primary" ng-click="Scissor()">
+            		Scissor
+            	</button>
+            </div>
+        </div> <!-- row -->
+
+        <!-- ================================ Deuce === -->
+        <div class="row" ng-show="play_status=='deuce'">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            	<h1>Deuce!</h1>
+            	<h2>{{server_play}} : {{user_play}}</h2>
+           	</div>
+         </div> <!-- row -->
+
+         <!-- ================================ Server Win === -->
+        <div class="row" ng-show="play_status=='server'">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            	<h1>I win!</h1>
+            	<h2>{{server_play}} : {{user_play}}</h2>
+           	</div>
+         </div> <!-- row -->
+
+         <!-- ================================ User Win === -->
+        <div class="row" ng-show="play_status=='user'">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            	<h1>You win!</h1>
+            	<h2>{{server_play}} : {{user_play}}</h2>
+           	</div>
+         </div> <!-- row -->
+
+
+    </div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
+<script>
+	var Path = "[[.Path]]";
+	var City = "[[.City]]";
+	var Version = "[[.Version]]";    
+</script>
+<script type="text/javascript" src="/app.js?version=[[.Version]]"></script>
+</body>
+</html>

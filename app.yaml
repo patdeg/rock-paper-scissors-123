@@ -1,0 +1,25 @@
+application: rock-paper-scissors-123
+version: dev
+default_expiration: "10s"
+runtime: go
+api_version: go1
+
+handlers:
+- url: /favicon.ico
+  static_files: favicon.ico
+  upload: favicon.ico
+
+- url: /app.js
+  static_files: app.js
+  upload: app.js
+
+- url: /app.css
+  static_files: app.css
+  upload: app.css
+
+- url: /.*
+  script: _go_app
+  secure: always  
+#  login: required
+  login: admin
+
