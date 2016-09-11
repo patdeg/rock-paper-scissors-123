@@ -29,12 +29,20 @@ type GamePlay struct {
 	DatastoreKey      string    `json:"datastore_key" datastore:"-"`
 	CurrentUserPlay   string    `json:"current_user_play"`
 	CurrentServerPlay string    `json:"current_server_play"`
+	LastUserPlays     string    `json:"last_user_play"`
+	LastServerPlays   string    `json:"last_server_play"`
 	Last3UserPlays    string    `json:"last_3_user_play"`
 	Last3ServerPlays  string    `json:"last_3_server_play"`
 	Last2UserPlays    string    `json:"last_2_user_play"`
 	Last2ServerPlays  string    `json:"last_2_server_play"`
 	CreatedTime       time.Time `json:"created_time,omitempty"`
 	CookieId          string    `json:"cookie_id,omitempty"`
+}
+
+type Request struct {
+	Winner string `json:"winner,omitempty"`
+	User   string `json:"user,omitempty"`
+	Server string `json:"server,omitempty"`
 }
 
 // HTML Template for the home page
@@ -50,7 +58,10 @@ func init() {
 	http.HandleFunc("/play", PlayHandler)
 
 	// API to record previous play
-	http.HandleFunc("/record", RecordHandler)
+	http.HandleFunc("/record", RecordPlayHandler)
+
+	// API to record finished game
+	http.HandleFunc("/game", RecordGameHandler)
 
 	// Create Table in BigQuery (admin only)
 	http.HandleFunc("/init", CreateBigQueryTableHandler)
@@ -88,16 +99,10 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 	rand.Seed(time.Now().UnixNano())
 	defaultValue := answers[rand.Intn(len(answers))]
 
-	last3UserPlays := Simplify(c, r.FormValue("pu"))
-	last3ServerPlays := Simplify(c, r.FormValue("ps"))
-	last2UserPlays := LastTwo(last3UserPlays)
-	last2ServerPlays := LastTwo(last3ServerPlays)
-	log.Debugf(c, "%v / %v / %v / %v", last3UserPlays, last3ServerPlays, last2UserPlays, last2ServerPlays)
-
 	var gamePlays []GamePlay
 	q := datastore.NewQuery("GamePlay").
-		Filter("Last2UserPlays =", last2UserPlays).
-		Filter("Last2ServerPlays =", last2ServerPlays).
+		Filter("Last2UserPlays =", LastNCharacters(r.FormValue("pu"), 2)).
+		Filter("Last2ServerPlays =", LastNCharacters(r.FormValue("pu"), 2)).
 		Limit(100)
 	_, err := q.GetAll(c, &gamePlays)
 	if err != nil {
@@ -149,11 +154,11 @@ func PlayHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func RecordHandler(w http.ResponseWriter, r *http.Request) {
+func RecordPlayHandler(w http.ResponseWriter, r *http.Request) {
 
 	c := appengine.NewContext(r)
 
-	log.Infof(c, ">>>> Record Handler")
+	log.Infof(c, ">>>> Record Play Handler")
 
 	cookieId := r.FormValue("id")
 
@@ -171,17 +176,15 @@ func RecordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	last3UserPlays := Simplify(c, r.FormValue("pu"))
-
-	last3ServerPlays := Simplify(c, r.FormValue("ps"))
-
 	gamePlay := GamePlay{
 		CurrentUserPlay:   currentUserPlay,
 		CurrentServerPlay: currentServerPlay,
-		Last3UserPlays:    last3UserPlays,
-		Last3ServerPlays:  last3ServerPlays,
-		Last2UserPlays:    LastTwo(last3UserPlays),
-		Last2ServerPlays:  LastTwo(last3ServerPlays),
+		LastUserPlays:     r.FormValue("pu"),
+		LastServerPlays:   r.FormValue("ps"),
+		Last3UserPlays:    LastNCharacters(r.FormValue("pu"), 3),
+		Last3ServerPlays:  LastNCharacters(r.FormValue("ps"), 3),
+		Last2UserPlays:    LastNCharacters(r.FormValue("pu"), 2),
+		Last2ServerPlays:  LastNCharacters(r.FormValue("ps"), 2),
 		CreatedTime:       time.Now(),
 		CookieId:          cookieId,
 	}
@@ -208,10 +211,8 @@ func RecordHandler(w http.ResponseWriter, r *http.Request) {
 					"Time":           time.Now(),
 					"User":           currentUserPlay,
 					"Server":         currentServerPlay,
-					"Last3User":      last3UserPlays,
-					"Last3Server":    last3ServerPlays,
-					"Last2User":      LastTwo(last3UserPlays),
-					"Last2Server":    LastTwo(last3ServerPlays),
+					"LastUser":       r.FormValue("pu"),
+					"LastServer":     r.FormValue("ps"),
 					"Country":        r.Header.Get("X-AppEngine-Country"),
 					"Region":         r.Header.Get("X-AppEngine-Region"),
 					"City":           r.Header.Get("X-AppEngine-City"),
@@ -228,7 +229,71 @@ func RecordHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	err := StreamDataInBigquery(c, projectId, "demo", "data", bq_req)
+	err := StreamDataInBigquery(c, projectId, "demo", "plays", bq_req)
+	if err != nil {
+		log.Errorf(c, "Error while streaming visit to BigQuery: %v", err)
+		log.Debugf(c, "Request: %v", ToJSON(bq_req))
+		http.Error(w, "Internal Server Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func RecordGameHandler(w http.ResponseWriter, r *http.Request) {
+
+	c := appengine.NewContext(r)
+
+	log.Infof(c, ">>>> Record Game Handler")
+
+	cookieId := r.FormValue("id")
+
+	var data Request
+
+	err := UnmarshalRequest(c, r, &data)
+	if err != nil {
+		log.Errorf(c, "Error while reading body: %v", err)
+		http.Error(w, "Internal Server Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Debugf(c, "Winner: %v", data.Winner)
+	log.Debugf(c, "User: %v", data.User)
+	log.Debugf(c, "Server: %v", data.Server)
+
+	projectId := strings.Replace(appengine.DefaultVersionHostname(c), ".appspot.com", "", 1)
+	log.Debugf(c, "Project: %v", projectId)
+
+	ua := user_agent.New(r.Header.Get("User-Agent"))
+	engineName, engineversion := ua.Engine()
+	browserName, browserVersion := ua.Browser()
+
+	bq_req := &bigquery.TableDataInsertAllRequest{
+		Kind: "bigquery#tableDataInsertAllRequest",
+		Rows: []*bigquery.TableDataInsertAllRequestRows{
+			{
+				Json: map[string]bigquery.JsonValue{
+					"CookieId":       cookieId,
+					"User":           data.User,
+					"Server":         data.Server,
+					"Winner":         data.Winner,
+					"Time":           time.Now(),
+					"Country":        r.Header.Get("X-AppEngine-Country"),
+					"Region":         r.Header.Get("X-AppEngine-Region"),
+					"City":           r.Header.Get("X-AppEngine-City"),
+					"IsMobile":       ua.Mobile(),
+					"MozillaVersion": ua.Mozilla(),
+					"Platform":       ua.Platform(),
+					"OS":             ua.OS(),
+					"EngineName":     engineName,
+					"EngineVersion":  engineversion,
+					"BrowserName":    browserName,
+					"BrowserVersion": browserVersion,
+				},
+			},
+		},
+	}
+
+	err = StreamDataInBigquery(c, projectId, "demo", "games", bq_req)
 	if err != nil {
 		log.Errorf(c, "Error while streaming visit to BigQuery: %v", err)
 		log.Debugf(c, "Request: %v", ToJSON(bq_req))
@@ -261,7 +326,7 @@ func CreateBigQueryTableHandler(w http.ResponseWriter, r *http.Request) {
 		TableReference: &bigquery.TableReference{
 			ProjectId: projectId,
 			DatasetId: "demo",
-			TableId:   "data",
+			TableId:   "plays",
 		},
 		FriendlyName: "Rock Paper Scissors Data",
 		Schema: &bigquery.TableSchema{
@@ -270,10 +335,8 @@ func CreateBigQueryTableHandler(w http.ResponseWriter, r *http.Request) {
 				{Name: "Time", Type: "TIMESTAMP", Description: "Time"},
 				{Name: "User", Type: "STRING", Description: "Current User Play"},
 				{Name: "Server", Type: "STRING", Description: "Current Server Play"},
-				{Name: "Last3User", Type: "STRING", Description: "Last 3 User's Plays"},
-				{Name: "Last3Server", Type: "STRING", Description: "Last 3 Server's Plays"},
-				{Name: "Last2User", Type: "STRING", Description: "Last 2 User's Plays"},
-				{Name: "Last2Server", Type: "STRING", Description: "Last 2 Server's Plays"},
+				{Name: "LastUser", Type: "STRING", Description: "Last Previous User's Plays"},
+				{Name: "LastServer", Type: "STRING", Description: "Last Previous Server's Plays"},
 				{Name: "Country", Type: "STRING", Description: "Country"},
 				{Name: "Region", Type: "STRING", Description: "Region"},
 				{Name: "City", Type: "STRING", Description: "City"},
@@ -290,6 +353,42 @@ func CreateBigQueryTableHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err := CreateTableInBigQuery(c, newTable)
+	if err != nil {
+		log.Errorf(c, "Error requesting table creation in BigQuery: %v", err)
+		http.Error(w, "Internal Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	newTable2 := &bigquery.Table{
+		TableReference: &bigquery.TableReference{
+			ProjectId: projectId,
+			DatasetId: "demo",
+			TableId:   "games",
+		},
+		FriendlyName: "Rock Paper Scissors Game Results",
+		Schema: &bigquery.TableSchema{
+			Fields: []*bigquery.TableFieldSchema{
+				{Name: "CookieId", Type: "STRING", Description: "User Cookie Id"},
+				{Name: "Time", Type: "TIMESTAMP", Description: "Time"},
+				{Name: "User", Type: "STRING", Description: "User Plays"},
+				{Name: "Server", Type: "STRING", Description: "Server Plays"},
+				{Name: "Winner", Type: "STRING", Description: "Game Winner"},
+				{Name: "Country", Type: "STRING", Description: "Country"},
+				{Name: "Region", Type: "STRING", Description: "Region"},
+				{Name: "City", Type: "STRING", Description: "City"},
+				{Name: "IsMobile", Type: "BOOLEAN", Description: "IsMobile"},
+				{Name: "MozillaVersion", Type: "STRING", Description: "MozillaVersion"},
+				{Name: "Platform", Type: "STRING", Description: "Platform"},
+				{Name: "OS", Type: "STRING", Description: "OS"},
+				{Name: "EngineName", Type: "STRING", Description: "EngineName"},
+				{Name: "EngineVersion", Type: "STRING", Description: "EngineVersion"},
+				{Name: "BrowserName", Type: "STRING", Description: "BrowserName"},
+				{Name: "BrowserVersion", Type: "STRING", Description: "BrowserVersion"},
+			},
+		},
+	}
+
+	err = CreateTableInBigQuery(c, newTable2)
 	if err != nil {
 		log.Errorf(c, "Error requesting table creation in BigQuery: %v", err)
 		http.Error(w, "Internal Error: "+err.Error(), http.StatusInternalServerError)

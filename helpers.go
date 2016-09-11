@@ -67,12 +67,23 @@ func Simplify(c context.Context, text string) string {
 	return result
 }
 
-func LastTwo(text string) string {
-	n := len(text) - 2
-	if n < 0 {
-		n = 0
+func LastNCharacters(text string, n int) string {
+	m := len(text) - n
+	if m < 0 {
+		m = 0
 	}
-	return text[n:]
+	return text[m:]
+}
+
+// Small utility function to convert a byte to a string
+func B2S(b []byte) (s string) {
+	n := bytes.Index(b, []byte{0})
+	if n > 0 {
+		s = string(b[:n])
+	} else {
+		s = string(b)
+	}
+	return
 }
 
 // Function to convert an array of bytes to a string
@@ -257,4 +268,21 @@ func DoesCookieExists(r *http.Request) bool {
 		return false
 	}
 	return true
+}
+
+func UnmarshalRequest(c context.Context, r *http.Request, value interface{}) error {
+
+	buffer := new(bytes.Buffer)
+	buffer.ReadFrom(r.Body)
+
+	log.Debugf(c, "JSON: %v", buffer.String())
+
+	err := json.Unmarshal(buffer.Bytes(), value)
+	if err != nil {
+		log.Errorf(c, "Error while decoing JSON: %v", err)
+		log.Infof(c, "JSON: %v", buffer.String())
+		return err
+	}
+
+	return nil
 }

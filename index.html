@@ -24,14 +24,21 @@
 
         <!-- ================================ Question === -->
 		<div class="row" ng-show="play_status=='question'">
-            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-            	<button class="btn btn-primary" ng-click="Rock()">
+			<div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+				<h2>What do you pick?</h2>
+			</div>
+            <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12" style="margin-top:1em">
+            	<button class="btn btn-lg btn-success" style="width:200px" ng-click="Rock()">
             		Rock
             	</button>
-            	<button class="btn btn-primary" ng-click="Paper()">
+            </div>
+            <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12"  style="margin-top:1em">
+            	<button class="btn btn-lg btn-success" style="width:200px" ng-click="Paper()">
             		Paper
             	</button>
-            	<button class="btn btn-primary" ng-click="Scissor()">
+            </div>
+            <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12"  style="margin-top:1em">
+            	<button class="btn btn-lg btn-success" style="width:200px" ng-click="Scissor()">
             		Scissor
             	</button>
             </div>
@@ -45,7 +52,7 @@
            	</div>
          </div> <!-- row -->
 
-         <!-- ================================ Server Win === -->
+        <!-- ================================ Server Win === -->
         <div class="row" ng-show="play_status=='server'">
             <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
             	<h1>I win!</h1>
@@ -53,7 +60,7 @@
            	</div>
          </div> <!-- row -->
 
-         <!-- ================================ User Win === -->
+        <!-- ================================ User Win === -->
         <div class="row" ng-show="play_status=='user'">
             <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
             	<h1>You win!</h1>
@@ -61,6 +68,19 @@
            	</div>
          </div> <!-- row -->
 
+         <!-- ================================ Server Won Best Of Seven === -->
+        <div class="row" ng-show="play_status=='server_won'">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            	<h1>Yeah, I won the game!</h1>            	
+           	</div>
+         </div> <!-- row -->
+
+        <!-- ================================ User Won Best Of Seven === -->
+        <div class="row" ng-show="play_status=='user_won'">
+            <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
+            	<h1>Congratulation, you beat me... You won the game!</h1>            	
+           	</div>
+         </div> <!-- row -->
 
     </div>
 
