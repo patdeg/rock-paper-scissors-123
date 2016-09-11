@@ -21,5 +21,5 @@ handlers:
   script: _go_app
   secure: always  
 #  login: required
-  login: admin
+#  login: admin
 

@@ -93,7 +93,8 @@ function($scope, $http, $timeout) {
 		}
 
 		var url = '/record?';
-		url += 'u=' +  $scope.user_play;
+		url += 'id=' +  COOKIE_ID;
+		url += '&u=' +  $scope.user_play;
 		url += '&s=' +  $scope.user_play;
 		url += '&pu=' +  LastThree($scope.user_plays);
 		url += '&ps=' +  LastThree($scope.server_plays);
