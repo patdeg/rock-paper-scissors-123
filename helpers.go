@@ -30,10 +30,6 @@ var (
 	ErrorWhileStreaming         = errors.New("There was an error streaming data to Big Query")
 )
 
-const (
-	AlreadyExists = "Already Exists: "
-)
-
 // Function for Handlers to check if user is logged in
 // and redirect to login URL if required. Return TRUE when a redirect
 // is needed (or a fatal error occurs when getting the Login URL).
@@ -54,19 +50,8 @@ func RedirectIfNotLoggedIn(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-func Simplify(c context.Context, text string) string {
-	result := ""
-	for _, w := range strings.Split(text, " ") {
-		for _, a := range answers {
-			if w == a {
-				result += string(a[0])
-				break
-			}
-		}
-	}
-	return result
-}
-
+// Return last N characters from text,
+// return text if less than N characters
 func LastNCharacters(text string, n int) string {
 	m := len(text) - n
 	if m < 0 {
@@ -76,17 +61,6 @@ func LastNCharacters(text string, n int) string {
 }
 
 // Small utility function to convert a byte to a string
-func B2S(b []byte) (s string) {
-	n := bytes.Index(b, []byte{0})
-	if n > 0 {
-		s = string(b[:n])
-	} else {
-		s = string(b)
-	}
-	return
-}
-
-// Function to convert an array of bytes to a string
 func BytesToString(b []byte) (s string) {
 	n := bytes.Index(b, []byte{0})
 	if n > 0 {
@@ -119,6 +93,11 @@ func GetBQServiceAccountClient(c context.Context) (*bigquery.Service, error) {
 		},
 	}
 	return bigquery.New(serviceAccountClient)
+}
+
+// Return true if error is "Already Exists" for table/dataset creation
+func ErrorIsAlreadyExists(err error) bool {
+	return strings.Contains(err.Error(), "Already Exists: ")
 }
 
 // Create a Table in BigQuery
@@ -158,7 +137,7 @@ func CreateTableInBigQuery(c context.Context, newTable *bigquery.Table) error {
 		newTable.TableReference.ProjectId,
 		newDataset).
 		Do()
-	if (err != nil) && !strings.Contains(err.Error(), AlreadyExists) {
+	if (err != nil) && !ErrorIsAlreadyExists(err) {
 		log.Errorf(c, "There was an error while creating dataset: %v", err)
 		return err
 	}
@@ -171,7 +150,7 @@ func CreateTableInBigQuery(c context.Context, newTable *bigquery.Table) error {
 		newTable.TableReference.DatasetId,
 		newTable).
 		Do()
-	if (err != nil) && !strings.Contains(err.Error(), AlreadyExists) {
+	if (err != nil) && !ErrorIsAlreadyExists(err) {
 		log.Errorf(c, "There was an error while creating table: %v", err)
 		return err
 	}
@@ -231,20 +210,21 @@ func StreamDataInBigquery(c context.Context, projectId, datasetId, tableId strin
 
 }
 
+// Return a MD5 hash of a string
 func MD5(data string) string {
 	h := md5.New()
 	io.WriteString(h, data)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// Get Cookie Id from cookies. If it doesn't exist, create, store
+// in cookie and return the value
 func GetCookieID(w http.ResponseWriter, r *http.Request) string {
 	var id string
 	c := appengine.NewContext(r)
 	cookie, err := r.Cookie("ID")
 	log.Infof(c, "ID cookie: %v", cookie)
 	if err != nil || cookie == nil || cookie.Value == "" {
-		log.Infof(c, "Error: %v", err)
-		log.Infof(c, "New Cookie...")
 		ts := strconv.FormatInt(time.Now().UnixNano(), 10)
 		id = MD5(ts + r.RemoteAddr)
 		http.SetCookie(w, &http.Cookie{
@@ -262,6 +242,7 @@ func GetCookieID(w http.ResponseWriter, r *http.Request) string {
 	return id
 }
 
+// Check if Cookie Id is in user's cookies
 func DoesCookieExists(r *http.Request) bool {
 	cookie, err := r.Cookie("ID")
 	if err != nil || cookie == nil || cookie.Value == "" {
@@ -270,19 +251,15 @@ func DoesCookieExists(r *http.Request) bool {
 	return true
 }
 
+// Utitility to convert JSON object in body
 func UnmarshalRequest(c context.Context, r *http.Request, value interface{}) error {
-
 	buffer := new(bytes.Buffer)
 	buffer.ReadFrom(r.Body)
-
-	log.Debugf(c, "JSON: %v", buffer.String())
-
 	err := json.Unmarshal(buffer.Bytes(), value)
 	if err != nil {
 		log.Errorf(c, "Error while decoing JSON: %v", err)
 		log.Infof(c, "JSON: %v", buffer.String())
 		return err
 	}
-
 	return nil
 }

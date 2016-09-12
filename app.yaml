@@ -1,6 +1,8 @@
 application: rock-paper-scissors-123
-version: dev
-default_expiration: "10s"
+version: 1001
+default_expiration: "1h"
+#version: dev
+#default_expiration: "10s"
 runtime: go
 api_version: go1
 

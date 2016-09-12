@@ -14,7 +14,8 @@
 
 		<div class="row">
             <div class="col-lg-12 col-md-12 col-sm-12 col-xs-12">
-            	<h1>Rock, Paper, Scissor</h1>				
+            	<h1>Rock, Paper, Scissor Game</h1>
+                <h2 id="fb-welcome"></h2>                
 				User wins: {{user_wins}}<br>
 				Deuce: {{deuce}}<br>
 				Computer wins: {{server_wins}}<br>				 
@@ -87,12 +88,52 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
-<script>
-	var Path = "[[.Path]]";
-	var City = "[[.City]]";
+<script>	
 	var Version = "[[.Version]]";    
 	var COOKIE_ID = "[[.CookieID]]";    
 </script>
+[[if .isFacebook]]<script>
+    window.fbAsyncInit = function() {
+
+        FB.init({
+          appId      : '1642387716072325',
+          xfbml      : true,
+          version    : 'v2.7'
+        });
+
+        // ADD ADDITIONAL FACEBOOK CODE HERE
+
+        function onLogin(response) {
+          if (response.status == 'connected') {
+            FB.api('/me?fields=first_name', function(data) {
+              var welcomeBlock = document.getElementById('fb-welcome');
+              welcomeBlock.innerHTML = 'Hello, ' + data.first_name + '!';
+            });
+          }
+        }
+
+        FB.getLoginStatus(function(response) {
+          // Check login status on load, and if the user is
+          // already logged in, go directly to the welcome message.
+          if (response.status == 'connected') {
+            onLogin(response);
+          } else {
+            // Otherwise, show Login dialog first.
+            FB.login(function(response) {
+              onLogin(response);
+            }, {scope: 'user_friends, email'});
+          }
+        });
+    };
+
+    (function(d, s, id){
+     var js, fjs = d.getElementsByTagName(s)[0];
+     if (d.getElementById(id)) {return;}
+     js = d.createElement(s); js.id = id;
+     js.src = "//connect.facebook.net/en_US/sdk.js";
+     fjs.parentNode.insertBefore(js, fjs);
+   }(document, 'script', 'facebook-jssdk'));
+</script>[[end]]
 <script type="text/javascript" src="/app.js?version=[[.Version]]"></script>
 </body>
 </html>
